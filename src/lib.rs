@@ -17,11 +17,21 @@ extern crate embedded_hal as hal;
 #[macro_use]
 extern crate bitflags;
 
+use core::fmt::Debug;
 use hal::blocking::i2c::{Write, WriteRead};
 use hal::digital::OutputPin;
 
 pub mod registers;
 use registers as reg;
+
+#[derive(Debug)]
+/// Error conditions returned by the LP55231
+pub enum Error<I> {
+    /// The LP is not currently enabled
+    NotEnabled,
+    /// Generic I2c error
+    I2cError(I),
+}
 
 #[derive(Copy, Clone)]
 /// Available I2C addresses for the part
@@ -94,13 +104,17 @@ pub struct Lp55231<I, P> {
     en_pin: Option<P>,
     /// The I2C address of this device
     addr: u8,
+    /// Has the LP55231 been enabled
+    en: bool,
 }
 
 impl<E, I, P> Lp55231<I, P>
 where
+    E: Debug,
     I: Write<Error = E> + WriteRead<Error = E>,
     P: OutputPin,
 {
+
     /// Create a new instance of an LP55231 that exclusively owns its I2C bus. Optionally takes a
     /// power control pin.
     pub fn new(i2c: I, en_pin: Option<P>, addr: Addr) -> Self {
@@ -108,13 +122,17 @@ where
             i2c,
             en_pin,
             addr: u8::from(addr) << 1,
+            en: false,
         }
     }
 
     /// Convenience method to call `self.i2c.write` with `self.addr`
-    fn send(&mut self, bytes: &[u8]) -> Result<(), E> {
-        self.i2c.write(self.addr, bytes)?;
-        Ok(())
+    fn send(&mut self, bytes: &[u8]) -> Result<(), Error<E>> {
+        if self.en {
+            self.i2c.write(self.addr, bytes).map_err(|e| Error::I2cError(e))
+        } else {
+            Err(Error::NotEnabled)
+        }
     }
 
     /// Enable the device for use
@@ -122,25 +140,26 @@ where
     /// Sets the enable line high, then sends an enable command, waits 500us, and then configures
     /// to device to use its internal clock, enable the charge pump at 1.5x boost, and
     /// auto-increment on writes.
-    pub fn enable(&mut self) -> Result<(), E> {
+    pub fn enable(&mut self) -> Result<(), Error<E>> {
         if let Some(p) = self.en_pin.as_mut() {
             p.set_high();
         }
         cortex_m::asm::delay(16000); // 500us @ 32 MHz; 0.12s @ 132 kHz. minimum 500us delay
+        self.en = true;
         self.send(&[reg::CNTRL1, (reg::Cntrl1::CHIP_EN).bits()])?;
         self.send(&[
-            reg::MISC,
-            (reg::Misc::INT_CLK_EN
-                | reg::Misc::CLK_DET_EN
-                | reg::Misc::CP_MODE_1_5x
-                | reg::Misc::EN_AUTO_INCR)
-                .bits(),
+                  reg::MISC,
+                  (reg::Misc::INT_CLK_EN
+                   | reg::Misc::CLK_DET_EN
+                   | reg::Misc::CP_MODE_1_5x
+                   | reg::Misc::EN_AUTO_INCR)
+                  .bits(),
         ])?;
         Ok(())
     }
 
     /// Soft-reset the device NOW
-    pub fn reset(&mut self) -> Result<(), E> {
+    pub fn reset(&mut self) -> Result<(), Error<E>> {
         self.send(&[reg::Reset::RESET_NOW.bits()])?;
         Ok(())
     }
@@ -150,10 +169,11 @@ where
         if let Some(p) = self.en_pin.as_mut() {
             p.set_low();
         }
+        self.en = false;
     }
 
     /// Set the D line to the provided PWM value
-    pub fn set_pwm(&mut self, d: D, pwm: u8) -> Result<(), E> {
+    pub fn set_pwm(&mut self, d: D, pwm: u8) -> Result<(), Error<E>> {
         self.send(&[reg::D_PWM_BASE + u8::from(d), pwm])?;
         Ok(())
     }

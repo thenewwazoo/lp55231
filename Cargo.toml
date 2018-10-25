@@ -1,7 +1,7 @@
 [package]
 authors = ["Brandon Matthews <bmatthews@zipcar.com>"]
 name = "lp55231"
-version = "0.1.0"
+version = "0.2.0"
 categories = ["embedded", "hardware-support", "no-std"]
 description = "Driver for the TI LP55231 using embedded-hal traits"
 keywords = ["embedded-hal-driver", "ti", "lp55231", "i2c", "hal"]
