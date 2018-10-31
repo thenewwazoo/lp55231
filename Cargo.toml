@@ -1,7 +1,7 @@
 [package]
 authors = ["Brandon Matthews <bmatthews@zipcar.com>"]
 name = "lp55231"
-version = "0.2.0"
+version = "0.2.1"
 categories = ["embedded", "hardware-support", "no-std"]
 description = "Driver for the TI LP55231 using embedded-hal traits"
 keywords = ["embedded-hal-driver", "ti", "lp55231", "i2c", "hal"]
@@ -10,5 +10,4 @@ repository = "https://github.com/thenewwazoo/lp55231/"
 
 [dependencies]
 bitflags = "1.0.4"
-cortex-m = "0.5.7"
 embedded-hal = "0.2.1"

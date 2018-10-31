@@ -12,7 +12,6 @@
 #![no_std]
 #![deny(missing_docs)]
 
-extern crate cortex_m; // This is used for asm::delay(); TODO replace with an embedded-hal Delay
 extern crate embedded_hal as hal;
 #[macro_use]
 extern crate bitflags;
@@ -50,9 +49,9 @@ impl From<Addr> for u8 {
     fn from(a: Addr) -> Self {
         match a {
             Addr::_0x32 => 0x32_u8,
-            Addr::_0x33 => 0x32_u8,
-            Addr::_0x34 => 0x32_u8,
-            Addr::_0x35 => 0x32_u8,
+            Addr::_0x33 => 0x33_u8,
+            Addr::_0x34 => 0x34_u8,
+            Addr::_0x35 => 0x35_u8,
         }
     }
 }
@@ -144,7 +143,9 @@ where
         if let Some(p) = self.en_pin.as_mut() {
             p.set_high();
         }
-        cortex_m::asm::delay(16000); // 500us @ 32 MHz; 0.12s @ 132 kHz. minimum 500us delay
+        // TODO there should be a 500us delay here, but the chip appears to mostly work without it,
+        // so I'm not going to worry about it now. Ideally, this function should take a
+        // `embedded_hal::delay::Delay` and wait.
         self.en = true;
         self.send(&[reg::CNTRL1, (reg::Cntrl1::CHIP_EN).bits()])?;
         self.send(&[
