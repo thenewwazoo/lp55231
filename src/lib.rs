@@ -21,6 +21,7 @@ use hal::blocking::i2c::{Write, WriteRead};
 use hal::digital::OutputPin;
 
 pub mod registers;
+
 use registers as reg;
 
 #[derive(Debug)]
@@ -108,12 +109,11 @@ pub struct Lp55231<I, P> {
 }
 
 impl<E, I, P> Lp55231<I, P>
-where
-    E: Debug,
-    I: Write<Error = E> + WriteRead<Error = E>,
-    P: OutputPin,
+    where
+        E: Debug,
+        I: Write<Error=E> + WriteRead<Error=E>,
+        P: OutputPin,
 {
-
     /// Create a new instance of an LP55231 that exclusively owns its I2C bus. Optionally takes a
     /// power control pin.
     pub fn new(i2c: I, en_pin: Option<P>, addr: Addr) -> Self {
@@ -134,6 +134,17 @@ where
         }
     }
 
+    /// Convenience method to call `self.i2c.write_read` with `self.addr`
+    fn read(&mut self, register: u8) -> Result<u8, Error<E>> {
+        if self.en {
+            let mut b = [0];
+            self.i2c.write_read(self.addr, &[register], &mut b).map_err(|e| Error::I2cError(e));
+            Ok(b[0])
+        } else {
+            Err(Error::NotEnabled)
+        }
+    }
+
     /// Enable the device for use
     ///
     /// Sets the enable line high, then sends an enable command, waits 500us, and then configures
@@ -149,13 +160,31 @@ where
         self.en = true;
         self.send(&[reg::CNTRL1, (reg::Cntrl1::CHIP_EN).bits()])?;
         self.send(&[
-                  reg::MISC,
-                  (reg::Misc::INT_CLK_EN
-                   | reg::Misc::CLK_DET_EN
-                   | reg::Misc::CP_MODE_1_5x
-                   | reg::Misc::EN_AUTO_INCR)
-                  .bits(),
+            reg::MISC,
+            (reg::Misc::INT_CLK_EN
+                | reg::Misc::CLK_DET_EN
+                | reg::Misc::CP_MODE_1_5x
+                | reg::Misc::EN_AUTO_INCR)
+                .bits(),
         ])?;
+        Ok(())
+    }
+
+    /// Set logarithmic scale
+    pub fn set_logarithmic(&mut self, leds: &[D]) -> Result<(), Error<E>> {
+        for led in leds {
+            let v = self.read(reg::D_CTRL_BASE + u8::from(*led))?;
+            self.send(&[reg::D_CTRL_BASE + u8::from(*led), v | reg::CtrlBase::LOG_EN.bits()])?;
+        }
+        Ok(())
+    }
+
+    /// Set linear scale
+    pub fn set_linear(&mut self, leds: &[D]) -> Result<(), Error<E>> {
+        for led in leds {
+            let v = self.read(reg::D_CTRL_BASE + u8::from(*led))?;
+            self.send(&[reg::D_CTRL_BASE + u8::from(*led), v & !reg::CtrlBase::LOG_EN.bits()])?;
+        }
         Ok(())
     }
 
