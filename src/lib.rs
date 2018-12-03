@@ -161,7 +161,7 @@ where
 
     /// Soft-reset the device NOW
     pub fn reset(&mut self) -> Result<(), Error<E>> {
-        self.send(&[reg::Reset::RESET_NOW.bits()])?;
+        self.send(&[reg::RESET, reg::Reset::RESET_NOW.bits()])?;
         Ok(())
     }
 
