@@ -55,6 +55,31 @@ pub const OUTPUT_ONOFF_LSB: u8 = 0x05;
 /// logarithmic PWM-scale the visual effect looks like linear. When the logarithmic adjustment is
 /// enabled, the chip handles internal PWM values with 12-bit resolution. This allows very
 /// fine-grained PWM control at low PWM duty cycles.
+pub const D_CTRL_BASE: u8 = 0x06;
+bitflags! {
+    /// D_CTRL_BASE register fields
+    pub struct CtrlBase: u8 {
+        /// No master fader set
+        const MAPPING_NO_MASTER_FADER = 0b00 << 6;
+        /// MASTER FADER1 controls output
+        const MAPPING_MASTER_FADER_1 = 0b01 << 6;
+        /// MASTER FADER1 controls output
+        const MAPPING_MASTER_FADER_2 = 0b10 << 6;
+        /// MASTER FADER1 controls output
+        const MAPPING_MASTER_FADER_3 = 0b11 << 6;
+        /// Logarithmic adjustment
+        const LOG_EN = 1 << 5;
+    }
+}
+
+impl CtrlBase {
+    /// Reference temperature
+    fn TEMP_COMP(v: u8) -> u8 {
+        v & 0b11111
+    }
+}
+
+/// Per LED control channel for D1 - fader channel assig, log dimming enable, temperature compensation
 pub const D1_CTRL: u8 = 0x06;
 /// Per LED control channel for D2 - fader channel assig, log dimming enable, temperature compensation
 pub const D2_CTRL: u8 = 0x07;
